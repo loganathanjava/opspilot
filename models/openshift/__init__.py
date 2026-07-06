@@ -1,9 +1,13 @@
-from .pod import Pod
 from .cluster import ClusterSummary
+from .container import Container
 from .namespace_health import NamespaceHealth
+from .pod import Pod
+from .pod_details import PodDetails
 
 __all__ = [
-    "Pod",
     "ClusterSummary",
+    "Container",
     "NamespaceHealth",
+    "Pod",
+    "PodDetails",
 ]

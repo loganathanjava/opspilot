@@ -1,9 +1,18 @@
 import httpx
 
 from config.settings import settings
+from services.openshift.exceptions import (
+    OpenShiftAPIError,
+    OpenShiftAuthenticationError,
+    OpenShiftNotFound,
+    OpenShiftPermissionDenied,
+)
 
 
 class OpenShiftClient:
+    """
+    Simple OpenShift REST client.
+    """
 
     def __init__(self):
 
@@ -22,20 +31,111 @@ class OpenShiftClient:
 
     def get(self, path: str):
 
+        return self._request(
+            "GET",
+            path,
+        )
+
+    def post(
+            self,
+            path: str,
+            json: dict | None = None,
+    ):
+
+        return self._request(
+            "POST",
+            path,
+            json=json,
+        )
+
+    def put(
+            self,
+            path: str,
+            json: dict | None = None,
+    ):
+
+        return self._request(
+            "PUT",
+            path,
+            json=json,
+        )
+
+    def patch(
+            self,
+            path: str,
+            json: dict | None = None,
+    ):
+
+        return self._request(
+            "PATCH",
+            path,
+            json=json,
+        )
+
+    def delete(
+            self,
+            path: str,
+    ):
+
+        return self._request(
+            "DELETE",
+            path,
+        )
+
+    def _request(
+            self,
+            method: str,
+            path: str,
+            **kwargs,
+    ):
+        """
+        Execute an HTTP request.
+        """
+
         if not path.startswith("/"):
             path = "/" + path
 
         url = f"{self.base_url}{path}"
 
-        print(f"GET {url}")
+        print(f"{method} {url}")
 
-        response = self.client.get(url)
+        response = self.client.request(
+            method,
+            url,
+            **kwargs,
+        )
 
         print(f"Status: {response.status_code}")
 
+        if response.status_code == 401:
+            raise OpenShiftAuthenticationError(
+                "Authentication failed."
+            )
+
+        if response.status_code == 403:
+            raise OpenShiftPermissionDenied(
+                "Permission denied."
+            )
+
+        if response.status_code == 404:
+            raise OpenShiftNotFound(
+                "Resource not found."
+            )
+
         if response.status_code >= 400:
-            print(response.text)
+            raise OpenShiftAPIError(
+                response.text
+            )
 
-        response.raise_for_status()
+        if not response.content:
+            return None
 
-        return response.json()
+        content_type = response.headers.get(
+            "content-type",
+            "",
+        )
+
+        if "application/json" in content_type:
+            return response.json()
+
+        return response.text

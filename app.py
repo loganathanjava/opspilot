@@ -1,23 +1,17 @@
 import streamlit as st
 
-from ui.sidebar import render_sidebar
-from ui.dashboard import render_dashboard
 from ui.chat import render_chat
+from ui.core import render_shell
 
 
 st.set_page_config(
     page_title="OpsPilot",
-    page_icon="🤖",
+    page_icon="🚀",
     layout="wide",
 )
 
-# Sidebar
-render_sidebar()
-
-# Dashboard
-render_dashboard()
+render_shell()
 
 st.divider()
 
-# AI Chat
 render_chat()
