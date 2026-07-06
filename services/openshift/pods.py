@@ -6,6 +6,9 @@ from services.openshift.parsers import PodParser
 
 
 class PodService(BaseService):
+    """
+    Service for working with OpenShift Pods.
+    """
 
     def __init__(self):
         super().__init__()
@@ -53,7 +56,15 @@ class PodService(BaseService):
         return [
             pod
             for pod in self._list_namespace_pods(namespace)
-            if pod.reason != pod.status
+            if PodParser.is_unhealthy(
+                {
+                    "status": {
+                        "phase": pod.status,
+                        "containerStatuses": [],
+                    }
+                }
+            )
+               or pod.reason != pod.status
         ]
 
     def get_pod(
@@ -62,7 +73,7 @@ class PodService(BaseService):
             pod_name: str,
     ) -> Pod | None:
         """
-        Returns a single pod.
+        Returns a single pod summary.
         """
 
         for pod in self._list_namespace_pods(namespace):
@@ -76,19 +87,41 @@ class PodService(BaseService):
             self,
             namespace: str,
             pod_name: str,
+            container: str | None = None,
+            previous: bool = False,
+            tail_lines: int = 500,
     ) -> str:
         """
         Returns pod logs.
         """
 
+        path = (
+            f"/api/v1/namespaces/{namespace}"
+            f"/pods/{pod_name}/log"
+        )
+
+        params = {
+            "tailLines": tail_lines,
+        }
+
+        if container:
+            params["container"] = container
+
+        if previous:
+            params["previous"] = "true"
+
         return self.client.get(
-            f"/api/v1/namespaces/{namespace}/pods/{pod_name}/log"
+            path,
+            params=params,
         )
 
     def _list_namespace_pods(
             self,
             namespace: str,
     ) -> list[Pod]:
+        """
+        Returns pods in a namespace.
+        """
 
         response = self.client.get(
             f"/api/v1/namespaces/{namespace}/pods"

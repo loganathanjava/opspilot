@@ -29,11 +29,16 @@ class OpenShiftClient:
             },
         )
 
-    def get(self, path: str):
+    def get(
+            self,
+            path: str,
+            params: dict | None = None,
+    ):
 
         return self._request(
             "GET",
             path,
+            params=params,
         )
 
     def post(
