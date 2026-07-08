@@ -3,6 +3,7 @@ from .container import Container
 from .namespace_health import NamespaceHealth
 from .pod import Pod
 from .pod_details import PodDetails
+from .deployment import Deployment
 
 __all__ = [
     "ClusterSummary",
@@ -10,4 +11,5 @@ __all__ = [
     "NamespaceHealth",
     "Pod",
     "PodDetails",
+    "Deployment"
 ]

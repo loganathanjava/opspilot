@@ -1,129 +1,133 @@
-from datetime import datetime, timezone
+from services.openshift.utils import KubernetesUtils
 
 
 class PodParser:
     """
-    Utility methods for extracting pod information from the
-    OpenShift/Kubernetes API response.
+    Parses Pod API responses.
     """
 
     @staticmethod
-    def container_statuses(item: dict) -> list:
-        return item.get("status", {}).get("containerStatuses", [])
+    def ready(item: dict) -> str:
 
-    @classmethod
-    def ready(cls, item: dict) -> str:
-        statuses = cls.container_statuses(item)
+        statuses = item.get(
+            "status",
+            {},
+        ).get(
+            "containerStatuses",
+            [],
+        )
 
         ready = sum(
-            1 for c in statuses
-            if c.get("ready")
+            1
+            for status in statuses
+            if status.get("ready")
         )
 
         return f"{ready}/{len(statuses)}"
 
-    @classmethod
-    def restart_count(cls, item: dict) -> int:
-        statuses = cls.container_statuses(item)
+    @staticmethod
+    def status(item: dict) -> str:
 
-        return sum(
-            c.get("restartCount", 0)
-            for c in statuses
+        return item.get(
+            "status",
+            {},
+        ).get(
+            "phase",
+            "Unknown",
         )
 
     @staticmethod
-    def status(item: dict) -> str:
-        return item.get("status", {}).get("phase", "Unknown")
+    def restart_count(item: dict) -> int:
 
-    @classmethod
-    def reason(cls, item: dict) -> str:
-        """
-        Return the most meaningful reason for the pod state.
-        """
+        statuses = item.get(
+            "status",
+            {},
+        ).get(
+            "containerStatuses",
+            [],
+        )
 
-        # Waiting reason (CrashLoopBackOff, ImagePullBackOff...)
-        for status in cls.container_statuses(item):
-            waiting = (
-                status.get("state", {})
-                .get("waiting")
+        return sum(
+            status.get(
+                "restartCount",
+                0,
+            )
+            for status in statuses
+        )
+
+    @staticmethod
+    def reason(item: dict) -> str:
+
+        statuses = item.get(
+            "status",
+            {},
+        ).get(
+            "containerStatuses",
+            [],
+        )
+
+        for status in statuses:
+
+            waiting = status.get(
+                "state",
+                {},
+            ).get(
+                "waiting",
             )
 
             if waiting:
-                return waiting.get("reason", "Unknown")
 
-        # Pod-level reason (Evicted, etc.)
-        reason = item.get("status", {}).get("reason")
+                return waiting.get(
+                    "reason",
+                    "Waiting",
+                )
 
-        if reason:
-            return reason
-
-        return cls.status(item)
+        return PodParser.status(item)
 
     @staticmethod
     def age(item: dict) -> str:
-        """
-        Returns pod age in Kubernetes style.
-        Example:
-            35s
-            8m
-            2h
-            3d
-        """
 
-        created = (
-            item.get("metadata", {})
-            .get("creationTimestamp")
+        timestamp = item.get(
+            "metadata",
+            {},
+        ).get(
+            "creationTimestamp",
         )
 
-        if not created:
-            return "-"
-
-        created_dt = datetime.fromisoformat(
-            created.replace("Z", "+00:00")
+        return KubernetesUtils.calculate_age(
+            timestamp,
         )
 
-        now = datetime.now(timezone.utc)
+    @staticmethod
+    def is_unhealthy(item: dict) -> bool:
 
-        delta = now - created_dt
-
-        seconds = int(delta.total_seconds())
-
-        if seconds < 60:
-            return f"{seconds}s"
-
-        minutes = seconds // 60
-
-        if minutes < 60:
-            return f"{minutes}m"
-
-        hours = minutes // 60
-
-        if hours < 24:
-            return f"{hours}h"
-
-        days = hours // 24
-
-        return f"{days}d"
-
-    @classmethod
-    def is_unhealthy(cls, item: dict) -> bool:
-        """
-        Determines whether the pod should be considered unhealthy.
-        """
-
-        if cls.restart_count(item) > 0:
+        if PodParser.status(item) != "Running":
             return True
 
-        unhealthy_reasons = {
-            "CrashLoopBackOff",
-            "ImagePullBackOff",
-            "ErrImagePull",
-            "CreateContainerConfigError",
-            "CreateContainerError",
-            "Evicted",
-        }
+        statuses = item.get(
+            "status",
+            {},
+        ).get(
+            "containerStatuses",
+            [],
+        )
 
-        if cls.reason(item) in unhealthy_reasons:
-            return True
+        for status in statuses:
+
+            waiting = status.get(
+                "state",
+                {},
+            ).get(
+                "waiting",
+            )
+
+            if waiting:
+                return True
+
+            if status.get(
+                    "restartCount",
+                    0,
+            ) > 0:
+                return True
 
         return False

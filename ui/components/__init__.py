@@ -1,3 +1,4 @@
+from .event_viewer import render_event_viewer
 from .log_viewer import render_log_viewer
 from .metric_card import render_metric_card
 from .page_header import render_page_header
@@ -6,6 +7,7 @@ from .status_badge import render_status_badge
 from .yaml_viewer import render_yaml_viewer
 
 __all__ = [
+    "render_event_viewer",
     "render_log_viewer",
     "render_metric_card",
     "render_page_header",
@@ -13,3 +15,7 @@ __all__ = [
     "render_status_badge",
     "render_yaml_viewer",
 ]
+
+
+def render_deployment_table():
+    return None
